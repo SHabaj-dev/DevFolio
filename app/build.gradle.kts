@@ -19,9 +19,22 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            // Enable R8 code shrinking, obfuscation, and resource shrinking
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+
+        debug {
+            // Keep debug fast — no shrinking
+            isMinifyEnabled = false
+            isShrinkResources = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
     }
     compileOptions {
