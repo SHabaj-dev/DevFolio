@@ -1,65 +1,45 @@
 package com.sbz.devfolio.features.projects
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.sbz.devfolio.core.domain.model.PortfolioUiState
+import com.sbz.devfolio.core.domain.usecase.GetPortfolioUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class ProjectsViewModel : ViewModel() {
-    private val mockProjects = listOf(
-        Project(
-            id = "1",
-            title = "DukaanDesk",
-            description = "Shop management application built with Jetpack Compose, MVVM architecture, and Firebase for real-time synchronization.",
-            tags = listOf("Compose", "Firebase", "MVVM", "StateFlow")
-        ),
-        Project(
-            id = "2",
-            title = "2048 Game",
-            description = "Modern Android implementation of the 2048 puzzle game using Jetpack Compose. Includes game-state management and undo functionality.",
-            tags = listOf("Compose", "Game", "MVVM")
-        ),
-        Project(
-            id = "3",
-            title = "AdJump Android SDK",
-            description = "Offerwall & Reward Monetization Platform. Integrated across 8+ consumer applications.",
-            tags = listOf("SDK", "Retrofit", "Monetization")
-        ),
-        Project(
-            id = "4",
-            title = "Ludo Money",
-            description = "Real-Time Multiplayer Gaming Platform supporting 2, 3, and 4-player game modes using WebSockets.",
-            tags = listOf("WebSockets", "Multiplayer", "Gaming")
-        ),
-        Project(
-            id = "5",
-            title = "BrainZ",
-            description = "Gamified Reward-Based Learning Application using Kotlin and MVVM architecture.",
-            tags = listOf("Kotlin", "Firebase", "Coroutines")
-        )
-    )
+class ProjectsViewModel(
+    private val getPortfolioUseCase: GetPortfolioUseCase
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(
-        ProjectsUiState(
-            allProjects = mockProjects,
-            filteredProjects = mockProjects,
-            availableTags = mockProjects.flatMap { it.tags }.distinct().sorted()
-        )
-    )
-    val uiState: StateFlow<ProjectsUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<PortfolioUiState>(PortfolioUiState.Loading)
+    val uiState: StateFlow<PortfolioUiState> = _uiState.asStateFlow()
 
-    fun filterByTag(tag: String?) {
-        _uiState.update { state ->
-            val filtered = if (tag == null) {
-                state.allProjects
-            } else {
-                state.allProjects.filter { it.tags.contains(tag) }
+    init {
+        loadPortfolio()
+    }
+
+    fun loadPortfolio() {
+        _uiState.value = PortfolioUiState.Loading
+        viewModelScope.launch {
+            getPortfolioUseCase().collect { result ->
+                result.fold(
+                    onSuccess = { _uiState.value = PortfolioUiState.Success(it) },
+                    onFailure = { _uiState.value = PortfolioUiState.Error(it.message ?: "Unknown error") }
+                )
             }
-            state.copy(
-                filteredProjects = filtered,
-                selectedTag = tag
-            )
         }
+    }
+
+    companion object {
+        fun provideFactory(useCase: GetPortfolioUseCase): ViewModelProvider.Factory = 
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return ProjectsViewModel(useCase) as T
+                }
+            }
     }
 }

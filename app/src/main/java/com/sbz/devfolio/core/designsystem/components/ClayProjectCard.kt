@@ -34,6 +34,7 @@ fun ClayProjectCard(
     title: String,
     description: String,
     tags: List<String>,
+    imageUrl: String? = null,
     onViewClick: () -> Unit,
     onGithubClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -56,6 +57,20 @@ fun ClayProjectCard(
             )
             
             Spacer(modifier = Modifier.height(8.dp))
+            
+            if (imageUrl != null) {
+                coil.compose.AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Project Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             
             Text(
                 text = description,

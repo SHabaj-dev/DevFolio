@@ -56,7 +56,15 @@ import kotlin.random.Random
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashRoute(onSplashComplete: () -> Unit, viewModel: SplashViewModel = viewModel()) {
+fun SplashRoute(
+    onSplashComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val app = context.applicationContext as com.sbz.devfolio.DevFolioApplication
+    val viewModel: SplashViewModel = viewModel(
+        factory = SplashViewModel.provideFactory(app.container.getPortfolioUseCase)
+    )
     val uiState by viewModel.uiState.collectAsState()
 
     SplashScreen(uiState = uiState, onSplashComplete = onSplashComplete)

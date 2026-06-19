@@ -1,52 +1,45 @@
 package com.sbz.devfolio.features.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.sbz.devfolio.core.domain.model.PortfolioUiState
+import com.sbz.devfolio.core.domain.usecase.GetPortfolioUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(
+    private val getPortfolioUseCase: GetPortfolioUseCase
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<PortfolioUiState>(PortfolioUiState.Loading)
+    val uiState: StateFlow<PortfolioUiState> = _uiState.asStateFlow()
 
     init {
-        loadMockData()
+        loadPortfolio()
     }
 
-    private fun loadMockData() {
-        _uiState.update { currentState ->
-            currentState.copy(
-                name = "Shabaj Ansari",
-                title = "Android Software Engineer",
-                description = "Android Software Engineer with 3 years of experience building scalable consumer applications, reward-based platforms, and Android SDKs using Kotlin and modern Android architecture.",
-                projectsCompleted = 10,
-                yearsExperience = 3,
-                technologiesUsed = 20,
-                githubRepositories = 24,
-                techStack = listOf(
-                    "Kotlin", "Java", "Jetpack Compose", "MVVM", 
-                    "Clean Architecture", "Coroutines", "Flow", 
-                    "Room", "Retrofit", "Firebase", "WebSockets", "AppLovin"
-                ),
-                featuredProject = Project(
-                    title = "DukaanDesk",
-                    description = "Shop management application built with Jetpack Compose, MVVM architecture, and Firebase for real-time synchronization.",
-                    tags = listOf("Compose", "Firebase", "MVVM", "StateFlow")
-                ),
-                recentAchievement = Achievement(
-                    title = "AdJump SDK",
-                    date = "Jan 2024",
-                    description = "Developed and maintained a production Android Offerwall SDK integrated across 8+ consumer applications."
-                ),
-                githubStats = GitHubStats(
-                    repositories = 24,
-                    stars = 156,
-                    followers = 42,
-                    contributions = 1250
+    fun loadPortfolio() {
+        _uiState.value = PortfolioUiState.Loading
+        viewModelScope.launch {
+            getPortfolioUseCase().collect { result ->
+                result.fold(
+                    onSuccess = { _uiState.value = PortfolioUiState.Success(it) },
+                    onFailure = { _uiState.value = PortfolioUiState.Error(it.message ?: "Unknown error") }
                 )
-            )
+            }
         }
+    }
+    
+    companion object {
+        fun provideFactory(useCase: GetPortfolioUseCase): ViewModelProvider.Factory = 
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return HomeViewModel(useCase) as T
+                }
+            }
     }
 }

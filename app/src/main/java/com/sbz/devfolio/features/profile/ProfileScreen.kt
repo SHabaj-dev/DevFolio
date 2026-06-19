@@ -24,31 +24,63 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-
+import com.sbz.devfolio.DevFolioApplication
 import com.sbz.devfolio.core.designsystem.components.ClayCard
 import com.sbz.devfolio.core.designsystem.components.ClayHeroCard
+import com.sbz.devfolio.core.designsystem.components.ClayLoadingState
+import com.sbz.devfolio.core.designsystem.components.ClayErrorState
 import com.sbz.devfolio.core.designsystem.components.ClaySectionHeader
 import com.sbz.devfolio.core.designsystem.components.ClayTechChip
+import com.sbz.devfolio.core.domain.model.PortfolioUiState
+import com.sbz.devfolio.core.network.model.PortfolioResponse
 import com.sbz.devfolio.core.utils.ResumeDownloader
+
+@Composable
+fun ProfileScreen(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val app = context.applicationContext as DevFolioApplication
+    val viewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModel.provideFactory(app.container.getPortfolioUseCase)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
+    when (val state = uiState) {
+        is PortfolioUiState.Loading -> {
+            ClayLoadingState(message = "Loading Profile...")
+        }
+        is PortfolioUiState.Error -> {
+            ClayErrorState(
+                message = state.message,
+                onRetry = { viewModel.loadPortfolio() }
+            )
+        }
+        is PortfolioUiState.Success -> {
+            ProfileContent(uiData = state.data, modifier = modifier)
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel()
+fun ProfileContent(
+    uiData: PortfolioResponse,
+    modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     var showContactSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     if (showContactSheet) {
         com.sbz.devfolio.core.designsystem.components.ContactBottomSheet(
+            uiData = uiData,
             onDismissRequest = { showContactSheet = false }
         )
     }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         ClaySectionHeader(
             title = "Profile",
@@ -65,9 +97,9 @@ fun ProfileScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 ClayHeroCard(
-                    name = uiState.name,
-                    title = uiState.title,
-                    description = uiState.bio.take(100) + "...", // short description for hero
+                    name = uiData.profile.name,
+                    title = uiData.profile.title,
+                    description = uiData.profile.summary.take(100) + "...", // short description for hero
                     onDownloadResumeClick = { ResumeDownloader.downloadAndOpenResume(context) },
                     onContactMeClick = { showContactSheet = true }
                 )
@@ -85,7 +117,7 @@ fun ProfileScreen(
 
                 ClayCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = uiState.bio,
+                        text = uiData.profile.summary,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 24.sp,
@@ -112,7 +144,14 @@ fun ProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.skills.forEach { skill ->
+                        // Aggregate all skills
+                        val allSkills = uiData.skills.languages + 
+                                        uiData.skills.android + 
+                                        uiData.skills.networking + 
+                                        uiData.skills.firebase + 
+                                        uiData.skills.tools
+                        
+                        allSkills.distinct().sorted().forEach { skill ->
                             ClayTechChip(text = skill)
                         }
                     }

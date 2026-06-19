@@ -27,15 +27,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbz.devfolio.ui.theme.LocalThemeIsDark
 
+import com.sbz.devfolio.core.network.model.PortfolioResponse
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactBottomSheet(
+    uiData: PortfolioResponse,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
-    val isDarkTheme = LocalThemeIsDark.current
     val bottomNavPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     ModalBottomSheet(
@@ -84,11 +86,11 @@ fun ContactBottomSheet(
                         icon = option.icon,
                         onClick = {
                             when (option) {
-                                ContactOption.EMAIL -> ContactAction.sendEmail(context)
-                                ContactOption.LINKEDIN -> ContactAction.openLinkedIn(context)
-                                ContactOption.GITHUB -> ContactAction.openGitHub(context)
-                                ContactOption.WHATSAPP -> ContactAction.openWhatsApp(context)
-                                ContactOption.PHONE -> ContactAction.dialPhone(context)
+                                ContactOption.EMAIL -> ContactAction.sendEmail(context, uiData.socialLinks.email)
+                                ContactOption.LINKEDIN -> ContactAction.openLinkedIn(context, uiData.socialLinks.linkedin)
+                                ContactOption.GITHUB -> ContactAction.openGitHub(context, uiData.socialLinks.github)
+                                ContactOption.WHATSAPP -> ContactAction.openWhatsApp(context, uiData.socialLinks.phone)
+                                ContactOption.PHONE -> ContactAction.dialPhone(context, uiData.socialLinks.phone)
                             }
                         }
                     )
@@ -109,8 +111,10 @@ fun ContactBottomSheet(
                     ),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
+                
+                val availableForText = uiData.profile.availableFor.joinToString(separator = "\n") { "• $it" }
                 Text(
-                    text = "• Android Development\n• Freelance Projects\n• Technical Discussions\n• Collaboration",
+                    text = availableForText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,

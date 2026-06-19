@@ -15,21 +15,53 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sbz.devfolio.DevFolioApplication
+import com.sbz.devfolio.core.designsystem.components.ClayLoadingState
+import com.sbz.devfolio.core.designsystem.components.ClayErrorState
 import com.sbz.devfolio.core.designsystem.components.ClaySectionHeader
 import com.sbz.devfolio.core.designsystem.components.ClayTimelineCard
+import com.sbz.devfolio.core.domain.model.PortfolioUiState
+import com.sbz.devfolio.core.network.model.PortfolioResponse
 
 @Composable
 fun ExperienceScreen(
-    viewModel: ExperienceViewModel = viewModel()
+    modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as DevFolioApplication
+    val viewModel: ExperienceViewModel = viewModel(
+        factory = ExperienceViewModel.provideFactory(app.container.getPortfolioUseCase)
+    )
     val uiState by viewModel.uiState.collectAsState()
 
+    when (val state = uiState) {
+        is PortfolioUiState.Loading -> {
+            ClayLoadingState(message = "Loading Experience...")
+        }
+        is PortfolioUiState.Error -> {
+            ClayErrorState(
+                message = state.message,
+                onRetry = { viewModel.loadPortfolio() }
+            )
+        }
+        is PortfolioUiState.Success -> {
+            ExperienceContent(uiData = state.data, modifier = modifier)
+        }
+    }
+}
+
+@Composable
+fun ExperienceContent(
+    uiData: PortfolioResponse,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         ClaySectionHeader(
             title = "Experience",
@@ -53,15 +85,22 @@ fun ExperienceScreen(
                 )
             }
 
-            itemsIndexed(uiState.experiences) { index, exp ->
+            itemsIndexed(uiData.experience) { index, exp ->
+                val description = buildString {
+                    exp.projects?.let { projects ->
+                        append("Projects: ${projects.joinToString(", ")}\n\n")
+                    }
+                    append("• " + exp.highlights.joinToString("\n• "))
+                }
+                
                 ClayTimelineCard(
-                    title = exp.title,
+                    title = exp.role,
                     subtitle = exp.company,
-                    period = exp.period,
-                    description = exp.description,
+                    period = "${exp.startDate} - ${exp.endDate}",
+                    description = description.trim(),
                     isFirst = index == 0,
-                    isLast = index == uiState.experiences.size - 1,
-                    isActive = exp.isCurrent
+                    isLast = index == uiData.experience.size - 1,
+                    isActive = exp.endDate.equals("Present", ignoreCase = true)
                 )
             }
 
@@ -76,15 +115,15 @@ fun ExperienceScreen(
                 )
             }
 
-            itemsIndexed(uiState.education) { index, edu ->
+            itemsIndexed(uiData.education) { index, edu ->
                 ClayTimelineCard(
-                    title = edu.title,
-                    subtitle = edu.company,
-                    period = edu.period,
-                    description = edu.description,
+                    title = edu.degree,
+                    subtitle = edu.institution,
+                    period = edu.duration,
+                    description = "",
                     isFirst = index == 0,
-                    isLast = index == uiState.education.size - 1,
-                    isActive = edu.isCurrent
+                    isLast = index == uiData.education.size - 1,
+                    isActive = false
                 )
             }
             

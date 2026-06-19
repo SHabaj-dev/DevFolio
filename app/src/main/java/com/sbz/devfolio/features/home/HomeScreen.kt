@@ -5,8 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.background
-import com.sbz.devfolio.ui.theme.LocalThemeIsDark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,35 +40,56 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sbz.devfolio.DevFolioApplication
 import com.sbz.devfolio.core.designsystem.components.ClayAchievementCard
-
 import com.sbz.devfolio.core.designsystem.components.ClayGitHubCard
 import com.sbz.devfolio.core.designsystem.components.ClayHeroCard
+import com.sbz.devfolio.core.designsystem.components.ClayLoadingState
+import com.sbz.devfolio.core.designsystem.components.ClayErrorState
 import com.sbz.devfolio.core.designsystem.components.ClayProjectCard
 import com.sbz.devfolio.core.designsystem.components.ClaySectionHeader
 import com.sbz.devfolio.core.designsystem.components.ClayStatCard
 import com.sbz.devfolio.core.designsystem.components.ClayTechChip
-import com.sbz.devfolio.ui.theme.DevFolioTheme
+import com.sbz.devfolio.core.domain.model.PortfolioUiState
+import com.sbz.devfolio.core.network.model.PortfolioResponse
 import com.sbz.devfolio.core.utils.ResumeDownloader
+import com.sbz.devfolio.ui.theme.DevFolioTheme
+import com.sbz.devfolio.ui.theme.LocalThemeIsDark
 import kotlinx.coroutines.delay
 
 @Composable
 fun HomeRoute(
-    viewModel: HomeViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as DevFolioApplication
+    val viewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.provideFactory(app.container.getPortfolioUseCase)
+    )
     val uiState by viewModel.uiState.collectAsState()
-    HomeScreen(uiState = uiState, modifier = modifier)
+
+    when (val state = uiState) {
+        is PortfolioUiState.Loading -> {
+            ClayLoadingState(message = "Loading Portfolio...")
+        }
+        is PortfolioUiState.Error -> {
+            ClayErrorState(
+                message = state.message,
+                onRetry = { viewModel.loadPortfolio() }
+            )
+        }
+        is PortfolioUiState.Success -> {
+            HomeScreen(uiData = state.data, modifier = modifier)
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
-    uiState: HomeUiState,
+    uiData: PortfolioResponse,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = LocalThemeIsDark.current
-    val bgColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFE2E8F0)
     val context = LocalContext.current
 
     // Staggered animation triggers
@@ -81,7 +100,6 @@ fun HomeScreen(
     var showFeatured by remember { mutableStateOf(false) }
     var showAchievement by remember { mutableStateOf(false) }
     var showGithub by remember { mutableStateOf(false) }
-    var showCta by remember { mutableStateOf(false) }
 
     var showContactSheet by remember { mutableStateOf(false) }
 
@@ -93,11 +111,11 @@ fun HomeScreen(
         delay(150); showFeatured = true
         delay(150); showAchievement = true
         delay(150); showGithub = true
-        delay(150); showCta = true
     }
 
     if (showContactSheet) {
         com.sbz.devfolio.core.designsystem.components.ContactBottomSheet(
+            uiData = uiData,
             onDismissRequest = { showContactSheet = false }
         )
     }
@@ -129,9 +147,9 @@ fun HomeScreen(
                         alpha = 0.08f
                     )
                     ClayHeroCard(
-                        name = uiState.name,
-                        title = uiState.title,
-                        description = uiState.description,
+                        name = uiData.profile.name,
+                        title = uiData.profile.title,
+                        description = uiData.profile.summary,
                         onDownloadResumeClick = { ResumeDownloader.downloadAndOpenResume(context) },
                         onContactMeClick = { showContactSheet = true }
                     )
@@ -151,64 +169,69 @@ fun HomeScreen(
                         alpha = 0.05f
                     )
                     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
-                    SectionTitle("Quick Stats")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        ClayStatCard(
-                            value = uiState.projectsCompleted,
-                            suffix = "+",
-                            label = "Projects",
-                            modifier = Modifier.weight(1f),
-                            delayMs = 400
-                        )
-                        ClayStatCard(
-                            value = uiState.yearsExperience,
-                            suffix = "+",
-                            label = "Years",
-                            modifier = Modifier.weight(1f),
-                            delayMs = 500
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        ClayStatCard(
-                            value = uiState.technologiesUsed,
-                            suffix = "+",
-                            label = "Techs",
-                            modifier = Modifier.weight(1f),
-                            delayMs = 600
-                        )
-                        ClayStatCard(
-                            value = uiState.githubRepositories,
-                            suffix = "+",
-                            label = "Repos",
-                            modifier = Modifier.weight(1f),
-                            delayMs = 700
-                        )
+                        SectionTitle("Quick Stats")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        // Dynamically calculate values from the response lists if possible
+                        val computedProjects = if (uiData.projects.isNotEmpty()) uiData.projects.size else uiData.stats.projectsCompleted
+                        val computedTechs = uiData.skills.languages.size + uiData.skills.android.size + uiData.skills.networking.size + uiData.skills.firebase.size + uiData.skills.tools.size
+                        val computedApps = uiData.experience.mapNotNull { it.projects }.flatten().distinct().size.takeIf { it > 0 } ?: uiData.stats.appsWorkedOn
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ClayStatCard(
+                                value = computedProjects,
+                                suffix = "+",
+                                label = "Projects",
+                                modifier = Modifier.weight(1f),
+                                delayMs = 400
+                            )
+                            ClayStatCard(
+                                value = uiData.profile.experienceYears,
+                                suffix = "+",
+                                label = "Years",
+                                modifier = Modifier.weight(1f),
+                                delayMs = 500
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ClayStatCard(
+                                value = if (computedTechs > 0) computedTechs else uiData.stats.technologiesUsed,
+                                suffix = "+",
+                                label = "Techs",
+                                modifier = Modifier.weight(1f),
+                                delayMs = 600
+                            )
+                            ClayStatCard(
+                                value = computedApps,
+                                suffix = "+",
+                                label = "Apps",
+                                modifier = Modifier.weight(1f),
+                                delayMs = 700
+                            )
+                        }
                     }
                 }
             }
         }
-    }
 
-        // 4. Tech Stack
+        // 4. Tech Stack (Android specific skills)
         item {
             AnimatedSection(visible = showTech) {
                 Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
-                    SectionTitle("Tech Stack")
+                    SectionTitle("Core Stack")
                     Spacer(modifier = Modifier.height(16.dp))
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        uiState.techStack.forEach { tech ->
+                        uiData.skills.android.forEach { tech ->
                             ClayTechChip(text = tech)
                         }
                     }
@@ -217,18 +240,28 @@ fun HomeScreen(
         }
 
         // 5. Featured Project
-        if (uiState.featuredProject != null) {
+        uiData.featuredProject?.let { project ->
             item {
                 AnimatedSection(visible = showFeatured) {
                     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
                         SectionTitle("Featured Project")
                         Spacer(modifier = Modifier.height(16.dp))
                         ClayProjectCard(
-                            title = uiState.featuredProject.title,
-                            description = uiState.featuredProject.description,
-                            tags = uiState.featuredProject.tags,
-                            onViewClick = { },
-                            onGithubClick = { }
+                            title = project.title,
+                            description = project.description,
+                            tags = project.technologies,
+                            onViewClick = { 
+                                project.playStoreUrl?.let { url ->
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                    context.startActivity(intent)
+                                }
+                            },
+                            onGithubClick = { 
+                                project.githubUrl?.let { url ->
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                    context.startActivity(intent)
+                                }
+                            }
                         )
                     }
                 }
@@ -236,41 +269,22 @@ fun HomeScreen(
         }
 
         // 6. Recent Achievement
-        if (uiState.recentAchievement != null) {
+        val recentAchievement = uiData.achievements.firstOrNull()
+        if (recentAchievement != null) {
             item {
                 AnimatedSection(visible = showAchievement) {
                     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
                         SectionTitle("Recent Achievement")
                         Spacer(modifier = Modifier.height(16.dp))
                         ClayAchievementCard(
-                            title = uiState.recentAchievement.title,
-                            date = uiState.recentAchievement.date,
-                            description = uiState.recentAchievement.description
+                            title = recentAchievement.title,
+                            date = "Recent",
+                            description = recentAchievement.description
                         )
                     }
                 }
             }
         }
-
-        // 7. GitHub Activity
-        if (uiState.githubStats != null) {
-            item {
-                AnimatedSection(visible = showGithub) {
-                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
-                        SectionTitle("GitHub Activity")
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ClayGitHubCard(
-                            repositories = uiState.githubStats.repositories,
-                            stars = uiState.githubStats.stars,
-                            followers = uiState.githubStats.followers,
-                            contributions = uiState.githubStats.contributions
-                        )
-                    }
-                }
-            }
-        }
-
-
     }
 }
 
@@ -295,14 +309,5 @@ fun AnimatedSection(visible: Boolean, content: @Composable () -> Unit) {
         )
     ) {
         content()
-    }
-}
-
-@Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
-@Composable
-fun HomeScreenPreview() {
-    DevFolioTheme {
-        HomeRoute()
     }
 }

@@ -28,14 +28,16 @@ enum class ContactOption(
 
 object ContactAction {
 
-    fun sendEmail(context: Context) {
+    fun sendEmail(context: Context, email: String) {
+        // Extract plain email if it's markdown format like [email](mailto:email)
+        val plainEmail = if (email.startsWith("[")) email.substringAfter("mailto:").substringBefore(")") else email
         val intent = Intent(Intent.ACTION_SENDTO).apply {
             data = Uri.parse("mailto:") // only email apps should handle this
-            putExtra(Intent.EXTRA_EMAIL, arrayOf("shabajansari843@gmail.com"))
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(plainEmail))
             putExtra(Intent.EXTRA_SUBJECT, "Android Developer Portfolio Inquiry")
             putExtra(
                 Intent.EXTRA_TEXT,
-                "Hello Shabaj,\n\nI came across your portfolio application and would like to connect regarding:\n\n[ ]\n\nLooking forward to hearing from you.\n\nRegards,"
+                "Hello,\n\nI came across your portfolio application and would like to connect regarding:\n\n[ ]\n\nLooking forward to hearing from you.\n\nRegards,"
             )
         }
         try {
@@ -45,27 +47,38 @@ object ContactAction {
         }
     }
 
-    fun openLinkedIn(context: Context) {
-        val linkedInId = "shabaj-ansari-696426202/"
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("linkedin://profile/$linkedInId"))
+    fun openLinkedIn(context: Context, linkedInUrl: String) {
+        if (linkedInUrl.isBlank()) {
+            Toast.makeText(context, "LinkedIn profile not available.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(linkedInUrl))
         try {
             context.startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.linkedin.com/in/$linkedInId"))
-            context.startActivity(browserIntent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open LinkedIn.", Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun openGitHub(context: Context) {
-        val githubId = "SHabaj-dev"
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/$githubId"))
-        context.startActivity(intent)
+    fun openGitHub(context: Context, githubUrl: String) {
+        if (githubUrl.isBlank()) {
+            Toast.makeText(context, "GitHub profile not available.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open GitHub.", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    fun openWhatsApp(context: Context) {
-        val phoneNumber = "917238877335" 
-        val message = "Hello Shabaj,\n\nI found your portfolio application and would like to connect."
-        val uri = Uri.parse("https://api.whatsapp.com/send?phone=$phoneNumber&text=${Uri.encode(message)}")
+    fun openWhatsApp(context: Context, phone: String) {
+        if (phone.isBlank()) return
+        // clean up phone number to remove + or spaces
+        val cleanPhone = phone.replace("+", "").replace(" ", "")
+        val message = "Hello,\n\nI found your portfolio application and would like to connect."
+        val uri = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(message)}")
         val intent = Intent(Intent.ACTION_VIEW, uri)
         try {
             context.startActivity(intent)
@@ -74,11 +87,15 @@ object ContactAction {
         }
     }
 
-    fun dialPhone(context: Context) {
-        val phoneNumber = "+917238877335"
+    fun dialPhone(context: Context, phone: String) {
+        if (phone.isBlank()) return
         val intent = Intent(Intent.ACTION_DIAL).apply {
-            data = Uri.parse("tel:$phoneNumber")
+            data = Uri.parse("tel:$phone")
         }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "No dialer app available.", Toast.LENGTH_SHORT).show()
+        }
     }
 }
