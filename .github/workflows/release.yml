@@ -1,0 +1,224 @@
+# =============================================================================
+# release.yml — DevFolio Release Pipeline
+# =============================================================================
+# Fires when you push a version tag to main:
+#
+#   git tag v1.0.0
+#   git push origin v1.0.0
+#
+# What it does:
+#   1. Parses the tag to derive versionName + versionCode
+#   2. Decodes the keystore from GitHub Secrets
+#   3. Builds a signed, R8-minified release APK
+#   4. Creates a GitHub Release named "v<version>"
+#   5. Uploads the APK as a release asset
+#   6. Marks the release as "latest" so the stable download link always works
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   ANDROID_KEYSTORE   Base64-encoded .jks keystore file
+#   KEY_ALIAS          Alias inside the keystore
+#   KEY_PASSWORD       Password for the key entry
+#   STORE_PASSWORD     Password for the keystore store
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"   # triggers on v1.0.0, v2.1.3, etc.
+
+# No concurrency cancellation on release — let every tag complete
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & Publish Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    # Needs write access to create GitHub Releases and upload assets
+    permissions:
+      contents: write
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Checkout — full history so we can generate a proper changelog
+      # -----------------------------------------------------------------------
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # 2. Parse semantic version from the tag
+      #    Tag "v1.2.3" → VERSION_NAME="1.2.3", VERSION_CODE=10203
+      # -----------------------------------------------------------------------
+      - name: Compute version from tag
+        id: version
+        run: |
+          RAW_TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
+          VERSION="${RAW_TAG#v}"                # strip leading 'v' → 1.2.3
+          
+          # Split into major / minor / patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          MAJOR=${MAJOR:-1}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          
+          # versionCode formula: major×10000 + minor×100 + patch
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          
+          echo "version_name=${VERSION}"        >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}"   >> "$GITHUB_OUTPUT"
+          echo "tag=${RAW_TAG}"                 >> "$GITHUB_OUTPUT"
+          
+          echo "▶ VERSION_NAME=${VERSION} | VERSION_CODE=${VERSION_CODE}"
+
+      # -----------------------------------------------------------------------
+      # 3. Generate changelog — commits since the previous tag
+      # -----------------------------------------------------------------------
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          
+          # Find the previous tag (if any)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1)
+          
+          if [ -z "$PREV_TAG" ]; then
+            # First ever release — include all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "${PREV_TAG}..HEAD")
+          fi
+          
+          # Write to a file (avoids multiline env var quoting issues)
+          echo "${CHANGELOG}" > CHANGELOG_BODY.txt
+          echo "prev_tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # 4. Java toolchain
+      # -----------------------------------------------------------------------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: gradle
+
+      # -----------------------------------------------------------------------
+      # 5. Gradle cache
+      # -----------------------------------------------------------------------
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # -----------------------------------------------------------------------
+      # 6. Decode keystore from secret (base64 → binary .jks file on disk)
+      # -----------------------------------------------------------------------
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 --decode > ${{ runner.temp }}/devfolio.jks
+          echo "Keystore decoded to ${{ runner.temp }}/devfolio.jks"
+
+      # -----------------------------------------------------------------------
+      # 7. Build signed release APK
+      #    Signing env vars are read by the signingConfigs block in build.gradle.kts
+      # -----------------------------------------------------------------------
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH:  ${{ runner.temp }}/devfolio.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS:      ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:   ${{ secrets.KEY_PASSWORD }}
+          VERSION_NAME:   ${{ steps.version.outputs.version_name }}
+          VERSION_CODE:   ${{ steps.version.outputs.version_code }}
+        run: |
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      # -----------------------------------------------------------------------
+      # 8. Locate and rename the APK to a human-readable asset name
+      # -----------------------------------------------------------------------
+      - name: Locate and rename APK
+        id: apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          RENAMED="DevFolio-${{ steps.version.outputs.tag }}.apk"
+          cp "$APK_PATH" "$RENAMED"
+          echo "apk_path=${RENAMED}" >> "$GITHUB_OUTPUT"
+          echo "▶ APK ready: ${RENAMED} ($(du -sh "$RENAMED" | cut -f1))"
+
+      # -----------------------------------------------------------------------
+      # 9. Verify the APK is properly signed
+      # -----------------------------------------------------------------------
+      - name: Verify APK signing
+        run: |
+          APK="${{ steps.apk.outputs.apk_path }}"
+          # Use apksigner from the Android build-tools
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose "$APK" && echo "✅ APK signature verified"
+
+      # -----------------------------------------------------------------------
+      # 10. Create GitHub Release + upload APK asset
+      # -----------------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ steps.version.outputs.tag }}
+          name:       "DevFolio ${{ steps.version.outputs.tag }}"
+          body: |
+            ## 🚀 DevFolio ${{ steps.version.outputs.tag }}
+
+            ### What's changed
+            ${{ steps.changelog.outputs.prev_tag != '' && format('Changes since {0}:', steps.changelog.outputs.prev_tag) || 'Initial release' }}
+
+            $(cat CHANGELOG_BODY.txt)
+
+            ---
+
+            ### 📦 Installation
+            1. Download `DevFolio-${{ steps.version.outputs.tag }}.apk` below
+            2. Enable **Install from unknown sources** on your device
+            3. Open the APK to install
+
+            ### 🔧 Build Info
+            | Property | Value |
+            |----------|-------|
+            | Version Name | `${{ steps.version.outputs.version_name }}` |
+            | Version Code | `${{ steps.version.outputs.version_code }}` |
+            | Min SDK | 24 (Android 7.0) |
+            | Target SDK | 36 |
+            | Build Tool | R8 + ProGuard (minified + obfuscated) |
+            | Signed | ✅ Release keystore |
+
+            ---
+            *Built automatically by [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+          files:       ${{ steps.apk.outputs.apk_path }}
+          make_latest: true
+          draft:       false
+          prerelease:  false
+
+      # -----------------------------------------------------------------------
+      # 11. Cleanup — remove decoded keystore from runner filesystem
+      # -----------------------------------------------------------------------
+      - name: Clean up keystore
+        if: always()
+        run: rm -f ${{ runner.temp }}/devfolio.jks

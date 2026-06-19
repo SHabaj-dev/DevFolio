@@ -13,3 +13,14 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Signing artifacts — NEVER commit keystores or decoded secrets
+*.jks
+*.keystore
+*.p12
+devfolio-release.jks
+CHANGELOG_BODY.txt
+
+# Lint baseline (committed intentionally — exclude generated reports)
+app/reports/
+

@@ -6,6 +6,11 @@
 
 *Showcasing modern Android development practices, a custom Claymorphism design system, and live remote data integration.*
 
+[![Quality Checks](https://github.com/SHabaj-dev/DevFolio/actions/workflows/quality.yml/badge.svg)](https://github.com/SHabaj-dev/DevFolio/actions/workflows/quality.yml)
+[![Release](https://github.com/SHabaj-dev/DevFolio/actions/workflows/release.yml/badge.svg)](https://github.com/SHabaj-dev/DevFolio/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/SHabaj-dev/DevFolio?style=flat-square&logo=github&color=3DDC84)](https://github.com/SHabaj-dev/DevFolio/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/SHabaj-dev/DevFolio/releases/latest)
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-UI-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-24-3DDC84?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/about/versions/nougat)
@@ -242,6 +247,63 @@ git clone https://github.com/SHabaj-dev/DevFolio.git
 ```
 
 > **Note:** Requires an active internet connection on first launch to fetch portfolio data from GitHub. Subsequent launches use the in-memory cache.
+
+---
+
+## ⚙️ CI/CD Pipeline
+
+DevFolio uses a two-workflow GitHub Actions pipeline:
+
+### `quality.yml` — runs on every push & pull request
+
+```
+push / pull_request → main
+         │
+         ▼
+  assembleDebug      ← compile check
+         │
+  lintDebug          ← static analysis (abortOnError)
+         │
+  test               ← unit tests (domain layer)
+         │
+  upload artifacts   ← lint XML/HTML + test reports
+```
+
+### `release.yml` — runs on version tags (`v*.*.*`)
+
+```
+git tag v1.0.0 && git push origin v1.0.0
+         │
+         ▼
+  parse version      ← v1.0.0 → name=1.0.0, code=10000
+         │
+  decode keystore    ← base64 ANDROID_KEYSTORE secret
+         │
+  assembleRelease    ← R8 + ProGuard + signing
+         │
+  verify signing     ← apksigner verify
+         │
+  GitHub Release     ← tag, changelog, build info
+         │
+  upload APK asset   ← DevFolio-v1.0.0.apk (marked latest)
+```
+
+The latest signed APK is always available at:
+```
+https://github.com/SHabaj-dev/DevFolio/releases/latest
+```
+
+> See [`.github/SECRETS.md`](.github/SECRETS.md) for the one-time keystore setup.
+
+### Future-ready extension points
+
+| Tool | Slot |
+|------|------|
+| Detekt | After lint in `quality.yml` |
+| Ktlint | After lint in `quality.yml` |
+| Paparazzi Screenshot Tests | New job in `quality.yml` |
+| Firebase App Distribution | After `packageRelease` in `release.yml` |
+| Play Store (Gradle Play Publisher) | Replace GitHub Release step |
 
 ---
 
