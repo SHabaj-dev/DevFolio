@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Android Dev | Splash</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&amp;family=Geist:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "surface-container": "#eaeef2",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#315467",
+                        "surface-container-low": "#f0f4f8",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#dfe3e7",
+                        "secondary": "#005ac1",
+                        "tertiary": "#406376",
+                        "on-primary": "#ffffff",
+                        "on-background": "#171c1f",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-primary-container": "#005c31",
+                        "tertiary-fixed": "#c4e7ff",
+                        "inverse-on-surface": "#edf1f5",
+                        "surface-tint": "#006d3b",
+                        "surface-bright": "#f6fafe",
+                        "inverse-surface": "#2c3134",
+                        "tertiary-fixed-dim": "#a8cbe2",
+                        "on-primary-fixed-variant": "#00522b",
+                        "background": "#f6fafe",
+                        "primary-fixed": "#66fea2",
+                        "on-secondary-fixed-variant": "#004494",
+                        "surface-dim": "#d6dade",
+                        "primary-fixed-dim": "#43e188",
+                        "secondary-fixed": "#d8e2ff",
+                        "on-secondary-container": "#00285c",
+                        "on-surface": "#171c1f",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#00210e",
+                        "secondary-container": "#4d8efe",
+                        "on-secondary-fixed": "#001a41",
+                        "on-tertiary-fixed": "#001e2c",
+                        "on-tertiary-fixed-variant": "#284b5e",
+                        "primary": "#006d3b",
+                        "surface-container-high": "#e4e9ed",
+                        "surface": "#f6fafe",
+                        "tertiary-container": "#a4c7de",
+                        "outline": "#6c7b6e",
+                        "inverse-primary": "#43e188",
+                        "surface-container-highest": "#dfe3e7",
+                        "primary-container": "#3ddc84",
+                        "outline-variant": "#bbcbbc",
+                        "on-surface-variant": "#3c4a3f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-margin": "24px",
+                        "base": "8px",
+                        "clay-padding-y": "20px",
+                        "gutter": "16px",
+                        "clay-padding-x": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Geist"],
+                        "body-md": ["Geist"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "body-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Claymorphic Surface Stack */
+        .clay-surface {
+            background: #ffffff;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.08),
+                inset 6px 6px 12px rgba(255, 255, 255, 0.9),
+                inset -6px -6px 12px rgba(7, 48, 66, 0.05);
+        }
+
+        /* Avatar Container Claymorphism */
+        .clay-avatar-container {
+            background: #f0f4f8;
+            box-shadow: 
+                0 15px 30px rgba(0, 0, 0, 0.05),
+                inset 4px 4px 8px rgba(255, 255, 255, 0.8),
+                inset -4px -4px 8px rgba(0, 109, 59, 0.05);
+        }
+
+        /* Animated Entrance & Floating */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes scaleUp {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .animate-entrance {
+            animation: scaleUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Splash Exit Animation */
+        .splash-exit {
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen flex items-center justify-center overflow-hidden transition-colors duration-1000" id="mainBody">
+<!-- Subtle Background Atmosphere -->
+<div class="absolute inset-0 z-0 pointer-events-none opacity-40">
+<div class="absolute top-[10%] left-[15%] w-64 h-64 bg-primary-container rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[10%] right-[15%] w-80 h-80 bg-tertiary-container rounded-full blur-[150px]"></div>
+</div>
+<!-- Content Wrapper for Scaling Effect -->
+<div class="w-full h-full flex flex-col items-center justify-center relative z-10 transition-all duration-1000" id="contentWrapper">
+<!-- Main Centered Content Block -->
+<main class="flex flex-col items-center animate-entrance text-center">
+<!-- Avatar Section (Increased Size) -->
+<div class="relative mb-8 group">
+<!-- Decorative Glow -->
+<div class="absolute inset-0 bg-primary/10 rounded-full blur-3xl scale-125 transition-transform duration-500 group-hover:scale-150"></div>
+<!-- Clay Circle Container (Increased by ~15%) -->
+<div class="clay-avatar-container w-[295px] h-[295px] md:w-[360px] md:h-[360px] rounded-full flex items-center justify-center p-6 relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+<!-- Profile Image -->
+<img alt="Android Developer Avatar" class="w-full h-auto object-contain animate-float" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1XhRCA5P9kRshbCsI3ROXgJLQ_Xkk3jMsh5Yl1vkKZ1xOIrQt4G41dYem4Y__M8pl_3ZBe1XBrVfKFxTrEsZ-yfKmtOM88vyox97IXXTkfy7AmvU2oqmNj3NqE938fkGzJVOd0B_JP-TS1EmEp01a3izFiC9fuw3gjVywlDDW4LUziCQURadg1tcbfx0vI-7LR_oZvt_VBTtQTzWe96CXakIeyAqcL6YdMBXqcYhESkuI0QnfRwXkqJl_PIPhsYO-lnP2CIO3xi98" style="filter: drop-shadow(rgba(0, 0, 0, 0.15) 0px 10px 15px);"/>
+</div>
+</div>
+<!-- Typography Section -->
+<div class="space-y-2 px-6">
+<h1 class="font-headline-xl text-headline-xl text-on-background tracking-tight md:text-[64px]">
+                    Android Dev
+                </h1>
+<div class="flex items-center justify-center gap-2 text-on-surface-variant/80">
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">developer_mode</span>
+<span class="font-body-lg text-body-md uppercase tracking-widest font-semibold opacity-70">
+                        Android Developer
+                    </span>
+</div>
+</div>
+</main>
+<!-- Gradle Sync Progress Section (Fixed at Bottom) -->
+<div class="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-start w-[70%] max-w-[400px] space-y-2.5 z-50">
+<div class="flex items-center justify-between w-full">
+<span class="text-[12px] font-mono font-semibold text-on-surface-variant/80 transition-all duration-300" id="syncStatus">Initializing Project...</span>
+<span class="text-[12px] font-mono text-primary font-bold" id="syncPercent">0%</span>
+</div>
+<div class="w-full h-2 bg-surface-container-low rounded-full clay-surface relative overflow-hidden border border-white/50">
+<div class="h-full w-0 bg-primary rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)]" id="progressBar"></div>
+</div>
+</div>
+</div>
+<!-- Interactive Background Particles -->
+<canvas class="absolute inset-0 pointer-events-none" id="particleCanvas"></canvas>
+<script>
+        // Particle System
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 0.4 - 0.2;
+                this.speedY = Math.random() * 0.4 - 0.2;
+                this.alpha = Math.random() * 0.3 + 0.1;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.reset();
+                }
+            }
+            draw() {
+                ctx.fillStyle = `rgba(0, 109, 59, ${this.alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            for (let i = 0; i < 35; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+
+        initParticles();
+        animateParticles();
+
+        // Gradle Sync Simulation
+        const statuses = [
+            { text: "Initializing Project...", threshold: 0 },
+            { text: "Downloading Dependencies...", threshold: 25 },
+            { text: "Syncing Gradle...", threshold: 50 },
+            { text: "Building Modules...", threshold: 75 },
+            { text: "Ready to Launch...", threshold: 95 }
+        ];
+
+        let progress = 0;
+        const progressBar = document.getElementById('progressBar');
+        const syncStatus = document.getElementById('syncStatus');
+        const syncPercent = document.getElementById('syncPercent');
+        const contentWrapper = document.getElementById('contentWrapper');
+
+        function updateProgress() {
+            if (progress < 100) {
+                // Non-linear progress increment for a more "realistic" feel
+                const increment = Math.random() * 1.5 + 0.5;
+                progress = Math.min(100, progress + increment);
+                
+                progressBar.style.width = `${progress}%`;
+                syncPercent.innerText = `${Math.floor(progress)}%`;
+
+                // Update status message
+                const currentStatus = statuses.slice().reverse().find(s => progress >= s.threshold);
+                if (currentStatus && syncStatus.innerText !== currentStatus.text) {
+                    syncStatus.style.opacity = '0';
+                    setTimeout(() => {
+                        syncStatus.innerText = currentStatus.text;
+                        syncStatus.style.opacity = '1';
+                    }, 150);
+                }
+
+                requestAnimationFrame(updateProgress);
+            } else {
+                // Completed Transition
+                setTimeout(triggerExit, 600);
+            }
+        }
+
+        function triggerExit() {
+            contentWrapper.classList.add('splash-exit');
+            // Mock background transition to indicate "Home"
+            document.getElementById('mainBody').classList.replace('bg-background', 'bg-surface-container-lowest');
+            
+            // In a real app, you would redirect here:
+            // window.location.href = 'home.html';
+            console.log("Navigation simulation started...");
+        }
+
+        // Start the sync after a small delay
+        setTimeout(updateProgress, 800);
+    </script>
+</body></html>
